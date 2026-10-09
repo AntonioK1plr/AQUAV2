@@ -2,16 +2,31 @@ import React,{useState} from 'react';
 import {Head,router,useForm} from '@inertiajs/react';
 import OperationsLayout from '@/Layouts/OperationsLayout';
 
-const emptyRecord={edad_mascota:'',sexo_mascota:'',peso_mascota:'',sintomas:'',antecedentes:'',diagnostico:'',tratamiento:'',medicamento:'',dosis:'',frecuencia:'',duracion:'',observaciones:'',constantes_ph:'',constantes_temp:''};
-const labels={edad_mascota:'Edad',sexo_mascota:'Sexo',peso_mascota:'Peso (g)',sintomas:'Síntomas observados',antecedentes:'Antecedentes clínicos',diagnostico:'Diagnóstico',tratamiento:'Tratamiento e indicaciones',medicamento:'Medicamento prescrito',dosis:'Dosis',frecuencia:'Frecuencia',duracion:'Duración',observaciones:'Observaciones',constantes_ph:'pH medido',constantes_temp:'Temperatura medida (°C)'};
+const emptyRecord={
+ nombre_mascota:'',especie:'',edad_mascota:'',sexo_mascota:'',peso_mascota:'',motivo:'',
+ sintomas:'',antecedentes:'',ph_acuario:'',temp_acuario:'',documentos:[],
+ constantes_ph:'',constantes_temp:'',diagnostico:'',tratamiento:'',medicamento:'',
+ dosis:'',frecuencia:'',duracion:'',observaciones:'',
+};
+const labels={
+ nombre_mascota:'Nombre del paciente',especie:'Especie',edad_mascota:'Edad aproximada',
+ sexo_mascota:'Sexo',peso_mascota:'Peso (g)',motivo:'Motivo de consulta',
+ sintomas:'Síntomas actuales',antecedentes:'Antecedentes clínicos',ph_acuario:'pH actual del acuario',
+ temp_acuario:'Temperatura actual (°C)',constantes_ph:'pH medido en consulta',
+ constantes_temp:'Temperatura medida (°C)',diagnostico:'Diagnóstico',
+ tratamiento:'Tratamiento e indicaciones',medicamento:'Medicamento prescrito',
+ dosis:'Dosis',frecuencia:'Frecuencia',duracion:'Duración',observaciones:'Observaciones',
+};
+const textareas=['motivo','sintomas','antecedentes','diagnostico','tratamiento','observaciones'];
+const requiredFields=['nombre_mascota','especie','motivo','diagnostico','tratamiento'];
 
 export default function Agenda({citas,fecha}){
  const[day,setDay]=useState(fecha),[open,setOpen]=useState(null);
  const form=useForm(emptyRecord);
  function toggleForm(c){
   if(open===c.id){setOpen(null);return}
-  const current=c.expediente||c,next={...emptyRecord};
-  Object.keys(next).forEach(key=>{next[key]=current[key]??''});
+  const current={...c,...(c.expediente||{})},next={...emptyRecord};
+  Object.keys(next).forEach(key=>{if(key!=='documentos')next[key]=current[key]??''});
   form.setData(next);form.clearErrors();setOpen(c.id);
  }
  function priorVisits(c){
@@ -19,15 +34,44 @@ export default function Agenda({citas,fecha}){
   return (c.user?.citas||[]).filter(old=>old.id!==c.id&&new Date(old.fecha_hora).getTime()<at);
  }
  function field(name){
-  const long=['sintomas','antecedentes','diagnostico','tratamiento','observaciones'].includes(name);
-  return <label key={name} className="block text-sm font-semibold">{labels[name]}{long?<textarea required={['diagnostico','tratamiento'].includes(name)} className="field mt-1 min-h-20" value={form.data[name]} onChange={e=>form.setData(name,e.target.value)}/>:<input type={name==='peso_mascota'||name.startsWith('constantes_')?'number':'text'} step={name==='peso_mascota'?'.001':'.01'} className="field mt-1" value={form.data[name]} onChange={e=>form.setData(name,e.target.value)}/>}{form.errors[name]&&<small className="text-rose-600">{form.errors[name]}</small>}</label>
+  const wide=textareas.includes(name);
+  const required=requiredFields.includes(name);
+  if(name==='sexo_mascota')return <label key={name} className="block text-sm font-semibold">{labels[name]}<select required={required} className="field mt-1" value={form.data[name]} onChange={e=>form.setData(name,e.target.value)}><option value="">No indicado</option><option>Macho</option><option>Hembra</option><option>No identificado</option></select>{form.errors[name]&&<small className="text-rose-600">{form.errors[name]}</small>}</label>;
+  return <label key={name} className={'block text-sm font-semibold '+(wide?'sm:col-span-2':'')}>{labels[name]}{wide?<textarea required={required} className="field mt-1 min-h-20" value={form.data[name]} onChange={e=>form.setData(name,e.target.value)}/>:<input required={required} type={['peso_mascota','ph_acuario','temp_acuario','constantes_ph','constantes_temp'].includes(name)?'number':'text'} step={name==='peso_mascota'?'.001':'.01'} className="field mt-1" value={form.data[name]} onChange={e=>form.setData(name,e.target.value)}/>}{form.errors[name]&&<small className="text-rose-600">{form.errors[name]}</small>}</label>;
  }
- return <OperationsLayout title="Agenda clínica" active="/veterinaria/agenda"><Head title="Agenda veterinaria | AQUARIUM"/><div className="mx-auto max-w-6xl"><div className="mb-5 flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-widest text-cyan-700">Atención veterinaria</p><h2 className="mt-1 text-2xl font-black">Agenda y expedientes clínicos</h2></div><label className="text-sm font-semibold">Fecha<input type="date" value={day} onChange={e=>{setDay(e.target.value);router.get('/veterinaria/agenda',{fecha:e.target.value},{preserveState:true,replace:true})}} className="field mt-1"/></label></div>
+ function documentInput(){
+  return <label className="block text-sm font-semibold sm:col-span-2">Recetas o estudios previos (PDF o Word)
+   <input type="file" multiple accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" className="field mt-1" onChange={e=>form.setData('documentos',Array.from(e.target.files||[]))}/>
+   <small className="mt-1 block font-normal text-slate-500">Hasta 3 archivos, máximo 1 MB cada uno. Solo el tutor y personal clínico autorizado podrán descargarlos.</small>
+   {Object.entries(form.errors).filter(([key])=>key==='documentos'||key.startsWith('documentos.')).map(([key,error])=><small key={key} className="block text-rose-600">{error}</small>)}
+   {form.data.documentos.length>0&&<small className="mt-1 block font-normal text-slate-600">{form.data.documentos.map(file=>file.name).join(' | ')}</small>}
+  </label>;
+ }
+ return <OperationsLayout title="Agenda clínica" active="/veterinaria/agenda"><Head title="Agenda veterinaria | AQUARIUM"/><div className="mx-auto max-w-6xl">
+  <div className="mb-5 flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-widest text-cyan-700">Atención veterinaria</p><h2 className="mt-1 text-2xl font-black">Agenda y expedientes clínicos</h2></div><label className="text-sm font-semibold">Día<input type="date" value={day} onChange={e=>{setDay(e.target.value);router.get('/veterinaria/agenda',{fecha:e.target.value},{preserveState:true,replace:true})}} className="field mt-1"/></label></div>
   <div className="space-y-4">{citas.map(c=>{const history=priorVisits(c);return <article key={c.id} className="rounded-2xl bg-white p-5 text-slate-900 shadow-sm">
-   <div className="flex flex-wrap justify-between gap-4"><div className="min-w-0 flex-1"><p className="text-xs font-bold uppercase tracking-wider text-teal-700">Cita #{c.id} · {new Date(c.fecha_hora).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})}</p><h3 className="mt-1 text-xl font-black">{c.nombre_mascota} <span className="text-base font-medium text-slate-500">({c.especie})</span></h3><p className="mt-1 text-sm">{c.user?.name} · {c.user?.email} · {c.user?.telefono||'Sin teléfono registrado'}</p><p className="mt-2 text-sm text-slate-600"><b>Motivo:</b> {c.motivo}</p><p className="text-sm text-slate-600"><b>Síntomas:</b> {c.sintomas||'No registrados'} · <b>Antecedentes:</b> {c.antecedentes||'No registrados'}</p><p className="text-xs text-slate-500">Edad {c.edad_mascota||'N/D'} · Sexo {c.sexo_mascota||'N/D'} · Peso {c.peso_mascota?String(c.peso_mascota)+' g':'N/D'} · pH {c.ph_acuario||'N/D'} · Temperatura {c.temp_acuario?String(c.temp_acuario)+' °C':'N/D'}</p><p className="mt-1 text-xs">Pago: {c.pago_confirmado?'Confirmado':'Pendiente en caja'} · Estado: {c.estatus}</p></div><div className="flex flex-col gap-2"><button disabled={!c.pago_confirmado} onClick={()=>toggleForm(c)} className="rounded-lg bg-[#07192d] px-4 py-2 text-sm font-bold text-white disabled:opacity-40">{c.expediente?'Editar expediente / receta':'Capturar consulta'}</button>{c.estatus==='Pendiente'&&<button onClick={()=>{const reason=window.prompt('Motivo médico de cancelación:');if(reason)router.patch('/veterinaria/citas/'+c.id,{estatus:'Cancelada',motivo_cancelacion:reason,reembolso_autorizado:!!c.pago_confirmado})}} className="rounded-lg border border-rose-300 px-4 py-2 text-sm text-rose-700">Cancelar cita</button>}</div></div>
+   <div className="flex flex-wrap justify-between gap-4"><div className="min-w-0 flex-1">
+    <p className="text-xs font-bold uppercase tracking-wider text-teal-700">Cita #{c.id} | {new Date(c.fecha_hora).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})}</p>
+    <h3 className="mt-1 text-xl font-black">{c.nombre_mascota||'Paciente pendiente de valoración'}{c.especie&&<span className="text-base font-medium text-slate-500"> ({c.especie})</span>}</h3>
+    <p className="mt-1 text-sm"><b>Asistirá:</b> {c.nombre_asistente||'Sin nombre registrado'}</p>
+    <p className="text-sm text-slate-600"><b>Tutor de la cuenta:</b> {c.user?.name} | {c.user?.email} | {c.user?.telefono||'Sin teléfono registrado'}</p>
+    {c.motivo&&<p className="mt-2 text-sm text-slate-600"><b>Motivo:</b> {c.motivo}</p>}
+    {(c.sintomas||c.antecedentes)&&<p className="text-sm text-slate-600"><b>Síntomas:</b> {c.sintomas||'No registrados'} | <b>Antecedentes:</b> {c.antecedentes||'No registrados'}</p>}
+    {c.nombre_mascota&&<p className="text-xs text-slate-500">Edad {c.edad_mascota||'N/D'} | Sexo {c.sexo_mascota||'N/D'} | Peso {c.peso_mascota?String(c.peso_mascota)+' g':'N/D'} | pH {c.ph_acuario||'N/D'} | Temperatura {c.temp_acuario?String(c.temp_acuario)+' °C':'N/D'}</p>}
+    <p className="mt-1 text-xs">Pago: {c.pago_confirmado?'Confirmado':'Pendiente en caja'} | Estado: {c.estatus}</p>
+   </div><div className="flex flex-col gap-2">
+    <button disabled={!c.pago_confirmado} onClick={()=>toggleForm(c)} className="rounded-lg bg-[#07192d] px-4 py-2 text-sm font-bold text-white disabled:opacity-40">{c.expediente?'Editar expediente / receta':'Capturar consulta'}</button>
+    {c.estatus==='Pendiente'&&<button onClick={()=>{const reason=window.prompt('Motivo médico de cancelación:');if(reason)router.patch('/veterinaria/citas/'+c.id,{estatus:'Cancelada',motivo_cancelacion:reason,reembolso_autorizado:!!c.pago_confirmado})}} className="rounded-lg border border-rose-300 px-4 py-2 text-sm text-rose-700">Cancelar cita</button>}
+   </div></div>
    {c.documentos?.length>0&&<section className="mt-4 rounded-xl bg-cyan-50 p-4"><h4 className="text-sm font-bold">Documentos recibidos del tutor</h4><ul className="mt-2 flex flex-wrap gap-2">{c.documentos.map((file,i)=><li key={file.path}><a className="rounded-lg border border-cyan-200 bg-white px-3 py-2 text-sm font-semibold text-cyan-800" href={'/citas/'+c.id+'/documentos/'+i} download>{file.name}</a></li>)}</ul></section>}
    {c.expediente?.receta_pdf_path&&<a className="mt-3 inline-block text-sm font-bold text-cyan-800" href={'/expedientes/'+c.expediente.id+'/receta'}>Descargar receta PDF actual</a>}
-   <details className="mt-4 rounded-xl border border-slate-200 p-4"><summary className="cursor-pointer text-sm font-bold">Historial previo de {c.user?.name} · {history.length} cita(s)</summary><div className="mt-3 space-y-3">{history.length?history.map(old=><div key={old.id} className="rounded-lg bg-slate-50 p-3 text-sm"><div className="flex flex-wrap justify-between gap-2"><b>{new Date(old.fecha_hora).toLocaleString('es-MX')} · {old.nombre_mascota} ({old.especie})</b><span>{old.estatus}</span></div><p className="mt-1 text-slate-600">Motivo: {old.motivo}</p>{old.expediente&&<><p className="mt-1 text-slate-700">Diagnóstico: {old.expediente.diagnostico}</p><p className="text-slate-700">Tratamiento: {old.expediente.tratamiento}</p><a className="mt-1 inline-block font-semibold text-cyan-800" href={'/expedientes/'+old.expediente.id+'/receta'}>Abrir receta previa</a></>}{old.documentos?.length>0&&<div className="mt-2 flex flex-wrap gap-3">{old.documentos.map((file,i)=><a key={file.path} className="text-cyan-800 underline" href={'/citas/'+old.id+'/documentos/'+i}>{file.name}</a>)}</div>}</div>):<p className="mt-3 text-sm text-slate-500">No hay consultas anteriores registradas para este tutor.</p>}</div></details>
-   {open===c.id&&<form onSubmit={e=>{e.preventDefault();form.post('/veterinaria/citas/'+c.id+'/expediente',{onSuccess:()=>setOpen(null)})}} className="mt-5 rounded-xl border border-cyan-100 bg-cyan-50/50 p-4"><h4 className="mb-3 font-bold">Expediente y receta médica</h4><div className="grid gap-3 sm:grid-cols-2">{['edad_mascota','sexo_mascota','peso_mascota','sintomas','antecedentes','constantes_ph','constantes_temp','diagnostico','tratamiento','medicamento','dosis','frecuencia','duracion','observaciones'].map(field)}</div><button disabled={form.processing} className="mt-4 rounded-lg bg-[#07192d] px-5 py-3 font-bold text-white">{form.processing?'Generando PDF…':'Guardar expediente y generar receta PDF'}</button></form>}
+   <details className="mt-4 rounded-xl border border-slate-200 p-4"><summary className="cursor-pointer text-sm font-bold">Historial previo de {c.user?.name} | {history.length} cita(s)</summary><div className="mt-3 space-y-3">{history.length?history.map(old=><div key={old.id} className="rounded-lg bg-slate-50 p-3 text-sm"><div className="flex flex-wrap justify-between gap-2"><b>{new Date(old.fecha_hora).toLocaleString('es-MX')} | {old.nombre_mascota||'Paciente sin registrar'}{old.especie?' ('+old.especie+')':''}</b><span>{old.estatus}</span></div>{old.motivo&&<p className="mt-1 text-slate-600">Motivo: {old.motivo}</p>}{old.expediente&&<><p className="mt-1 text-slate-700">Diagnóstico: {old.expediente.diagnostico}</p><p className="text-slate-700">Tratamiento: {old.expediente.tratamiento}</p><a className="mt-1 inline-block font-semibold text-cyan-800" href={'/expedientes/'+old.expediente.id+'/receta'}>Abrir receta previa</a></>}{old.documentos?.length>0&&<div className="mt-2 flex flex-wrap gap-3">{old.documentos.map((file,i)=><a key={file.path} className="text-cyan-800 underline" href={'/citas/'+old.id+'/documentos/'+i}>{file.name}</a>)}</div>}</div>):<p className="mt-3 text-sm text-slate-500">No hay consultas anteriores registradas para este tutor.</p>}</div></details>
+   {open===c.id&&<form onSubmit={e=>{e.preventDefault();form.post('/veterinaria/citas/'+c.id+'/expediente',{forceFormData:true,onSuccess:()=>setOpen(null)})}} className="mt-5 rounded-xl border border-cyan-100 bg-cyan-50/50 p-4">
+    <h4 className="mb-3 font-bold">Datos del paciente y consulta</h4>
+    <div className="grid gap-3 sm:grid-cols-2">{['nombre_mascota','especie','edad_mascota','sexo_mascota','peso_mascota','motivo','sintomas','antecedentes','ph_acuario','temp_acuario'].map(field)}{documentInput()}</div>
+    <h4 className="mb-3 mt-5 font-bold">Expediente y receta médica</h4>
+    <div className="grid gap-3 sm:grid-cols-2">{['constantes_ph','constantes_temp','diagnostico','tratamiento','medicamento','dosis','frecuencia','duracion','observaciones'].map(field)}</div>
+    <button disabled={form.processing} className="mt-4 rounded-lg bg-[#07192d] px-5 py-3 font-bold text-white">{form.processing?'Guardando consulta y receta…':'Guardar consulta y generar receta PDF'}</button>
+   </form>}
   </article>})}</div>{!citas.length&&<p className="rounded-xl bg-white p-6 text-slate-500">No hay citas para este día.</p>}</div></OperationsLayout>
 }

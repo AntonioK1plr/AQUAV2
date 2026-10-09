@@ -26,6 +26,10 @@ class AuthController extends Controller
         $request->session()->regenerate();
         $audit->registrar($request, 'auth.login');
 
+        if (mb_strtolower(Auth::user()->role) === 'cliente') {
+            return redirect()->intended(route('catalogo.index'));
+        }
+
         return redirect()->route(match (mb_strtolower(Auth::user()->role)) {
             'cajero' => 'pos.index',
             'almacenista' => 'almacen.picking',
@@ -45,7 +49,7 @@ class AuthController extends Controller
         $request->session()->regenerate();
         $audit->registrar($request, 'auth.register');
 
-        return redirect('/catalogo');
+        return redirect()->intended(route('catalogo.index'));
     }
 
     public function forgotForm() { return Inertia::render('Auth/ForgotPassword'); }
@@ -63,5 +67,5 @@ class AuthController extends Controller
         return $status === Password::PASSWORD_RESET ? redirect()->route('login')->with('success', 'Tu contraseña se actualizó. Ya puedes iniciar sesión.') : back()->withErrors(['email' => [__($status)]]);
     }
 
-    public function logout(Request $request) { Auth::logout(); $request->session()->invalidate(); $request->session()->regenerateToken(); return redirect()->route('login'); }
+    public function logout(Request $request) { Auth::logout(); $request->session()->invalidate(); $request->session()->regenerateToken(); return redirect()->route('home'); }
 }

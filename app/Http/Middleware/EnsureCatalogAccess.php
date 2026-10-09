@@ -11,7 +11,7 @@ class EnsureCatalogAccess
     {
         $user = $request->user();
         abort_unless(
-            $user && $user->is_active && in_array(mb_strtolower($user->role), ['cliente', 'cajero'], true),
+            !$user || ($user->is_active && in_array(mb_strtolower($user->role), ['cliente', 'cajero'], true)),
             403,
             'El catálogo está disponible para clientes y cajeros.'
         );

@@ -7,6 +7,7 @@ Route::middleware('catalog.access')->group(function () {
     Route::get('/catalogo', [CatalogoController::class, 'index'])->name('catalogo.index');
     Route::get('/catalogo/{producto}', [CatalogoController::class, 'show'])->name('catalogo.show');
     Route::get('/carrito', fn () => \Inertia\Inertia::render('Carrito/Index'))->name('carrito');
+    Route::get('/citas/nueva', [CitaVeterinariaController::class, 'create'])->name('citas.create');
     Route::post('/compatibilidad', [CatalogoController::class, 'compatibility'])->name('compatibilidad');
 });
 
@@ -18,11 +19,12 @@ Route::middleware(['auth', 'catalog.access'])->group(function () {
     Route::get('/pedidos/{pedido}/pase', [PedidoController::class, 'pase'])->name('pedidos.pase');
     Route::get('/perfil', [PerfilController::class, 'edit'])->name('perfil.edit');
     Route::patch('/perfil', [PerfilController::class, 'update'])->name('perfil.update');
-    Route::get('/citas/nueva', [CitaVeterinariaController::class, 'create'])->name('citas.create');
-    Route::post('/citas', [CitaVeterinariaController::class, 'store'])->name('citas.store');
+
 });
 
-Route::middleware(['auth', 'role:Administrador,Veterinario'])->group(function () {
+Route::middleware(['auth', 'role:Cliente'])->post('/citas', [CitaVeterinariaController::class, 'store'])->name('citas.store');
+
+Route::middleware(['auth', 'role:Veterinario'])->group(function () {
     Route::get('/veterinaria/agenda', [CitaVeterinariaController::class, 'agenda'])->name('vet.agenda');
     Route::patch('/veterinaria/citas/{cita}', [CitaVeterinariaController::class, 'update'])->name('vet.citas.update');
     Route::post('/veterinaria/citas/{cita}/expediente', [ExpedienteController::class, 'store'])->name('vet.expediente');

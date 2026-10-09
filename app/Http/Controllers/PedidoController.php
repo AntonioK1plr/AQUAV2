@@ -57,6 +57,25 @@ class PedidoController extends Controller
     }
 
     public function confirmation(Request $request, Pedido $pedido) { abort_unless($request->user()->id===$pedido->user_id||in_array(mb_strtolower($request->user()->role),['cajero','administrador'],true),403); return \Inertia\Inertia::render('Pedidos/Confirmacion',['pedido'=>$pedido]); }
-    public function historial(Request $request) { return \Inertia\Inertia::render('Historial/Index',['pedidos'=>$request->user()->pedidos()->with('items.producto')->latest()->get(),'citas'=>$request->user()->citas()->with('expediente')->latest('fecha_hora')->get()]); }
+    public function historial(Request $request)
+    {
+        $citas = $request->user()->citas()
+            ->latest('fecha_hora')
+            ->get(['id', 'user_id', 'nombre_asistente', 'fecha_hora', 'estatus', 'costo', 'pago_confirmado', 'documentos'])
+            ->map(fn ($cita) => [
+                'id' => $cita->id,
+                'nombre_asistente' => $cita->nombre_asistente,
+                'fecha_hora' => $cita->fecha_hora,
+                'estatus' => $cita->estatus,
+                'costo' => $cita->costo,
+                'pago_confirmado' => $cita->pago_confirmado,
+                'documentos_count' => count($cita->documentos ?? []),
+            ]);
+
+        return \Inertia\Inertia::render('Historial/Index', [
+            'pedidos' => $request->user()->pedidos()->with('items.producto')->latest()->get(),
+            'citas' => $citas,
+        ]);
+    }
     public function pase(Request $request,Pedido $pedido,PaseQrService $qr) { abort_unless($request->user()->id===$pedido->user_id||in_array(mb_strtolower($request->user()->role),['cajero','administrador'],true),403);abort_if(!$pedido->codigo_qr||$pedido->estatus==='Expirado',404);return response($qr->svg($pedido->codigo_qr),200,['Content-Type'=>'image/svg+xml','Cache-Control'=>'private, no-store']); }
 }
