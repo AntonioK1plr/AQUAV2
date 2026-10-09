@@ -1,4 +1,27 @@
 <?php
 namespace App\Services;
-use App\Models\ExpedienteClinico; use Barryvdh\DomPDF\Facade\Pdf; use Illuminate\Support\Facades\Storage;
-class RecetaPdfService { public function generar(ExpedienteClinico $record):string {$record->load('cita.user');$html=view('pdf.receta',['record'=>$record,'issuedAt'=>now()])->render();$bytes=Pdf::loadHTML($html)->setPaper('letter')->output();$name='recetas/'.$record->id.'-'.sha1($html).'.pdf';Storage::disk('local')->put($name,$bytes);$key=(string)config('app.key');$record->update(['receta_pdf_path'=>$name,'hash_nom151'=>hash_hmac('sha256',$bytes,$key)]);return $name;} public function validar(ExpedienteClinico $record):bool {if(!$record->receta_pdf_path||!$record->hash_nom151||!Storage::disk('local')->exists($record->receta_pdf_path))return false;$bytes=Storage::disk('local')->get($record->receta_pdf_path);$expected=hash_hmac('sha256',$bytes,(string)config('app.key'));return hash_equals($record->hash_nom151,$expected);} }
+
+use App\Models\ExpedienteClinico;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\Storage;
+
+class RecetaPdfService
+{
+    public function generar(ExpedienteClinico $record): string
+    {
+        $record->load('cita.user','veterinario');
+        $html=view('pdf.receta',['record'=>$record,'issuedAt'=>now()])->render();
+        $bytes=Pdf::loadHTML($html)->setPaper('letter')->output();
+        $name='recetas/'.$record->id.'-'.sha1($html).'.pdf';
+        Storage::disk('local')->put($name,$bytes);
+        $record->update(['receta_pdf_path'=>$name,'hash_nom151'=>hash_hmac('sha256',$bytes,(string)config('app.key'))]);
+        return $name;
+    }
+
+    public function validar(ExpedienteClinico $record): bool
+    {
+        if(!$record->receta_pdf_path||!$record->hash_nom151||!Storage::disk('local')->exists($record->receta_pdf_path))return false;
+        $bytes=Storage::disk('local')->get($record->receta_pdf_path);
+        return hash_equals($record->hash_nom151,hash_hmac('sha256',$bytes,(string)config('app.key')));
+    }
+}

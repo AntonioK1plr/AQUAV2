@@ -34,7 +34,7 @@ class PedidoController extends Controller
         }
         $order=DB::transaction(function() use($request,$data,$audit,$products,$live) {
             if($data['tipo_entrega']==='click_collect') {
-                DB::select('select pg_advisory_xact_lock(hashtext(?))',[$data['fecha_recoleccion'].' '.$data['hora_recoleccion']]);
+                if (DB::getDriverName()==='pgsql') DB::select('select pg_advisory_xact_lock(hashtext(?))',[$data['fecha_recoleccion'].' '.$data['hora_recoleccion']]);
                 $capacity=(int)config('aquarium.pickup_capacity_per_slot',12);
                 $occupied=Pedido::where('tipo_entrega','click_collect')->whereDate('fecha_recoleccion',$data['fecha_recoleccion'])->where('hora_recoleccion',$data['hora_recoleccion'])->whereNotIn('estatus',['Expirado','Entregado'])->where(fn($q)=>$q->whereNull('reservado_hasta')->orWhere('reservado_hasta','>',now()))->count();
                 if($occupied >= $capacity) throw ValidationException::withMessages(['hora_recoleccion'=>'Ese horario ya alcanzó su aforo máximo.']);
@@ -53,9 +53,10 @@ class PedidoController extends Controller
             return $order;
         });
         $audit->registrar($request,'pedido.creado:'.$order->id);
-        return back()->with('success','Inventario reservado por 30 minutos. Confirma el pedido con el personal de caja.')->with('pedido_id',$order->id);
+        return redirect()->route('pedidos.confirmacion',$order)->with('success','Inventario reservado por 30 minutos. Confirma el pedido con el personal de caja.');
     }
 
+    public function confirmation(Request $request, Pedido $pedido) { abort_unless($request->user()->id===$pedido->user_id||in_array(mb_strtolower($request->user()->role),['cajero','administrador'],true),403); return \Inertia\Inertia::render('Pedidos/Confirmacion',['pedido'=>$pedido]); }
     public function historial(Request $request) { return \Inertia\Inertia::render('Historial/Index',['pedidos'=>$request->user()->pedidos()->with('items.producto')->latest()->get(),'citas'=>$request->user()->citas()->with('expediente')->latest('fecha_hora')->get()]); }
     public function pase(Request $request,Pedido $pedido,PaseQrService $qr) { abort_unless($request->user()->id===$pedido->user_id||in_array(mb_strtolower($request->user()->role),['cajero','administrador'],true),403);abort_if(!$pedido->codigo_qr||$pedido->estatus==='Expirado',404);return response($qr->svg($pedido->codigo_qr),200,['Content-Type'=>'image/svg+xml','Cache-Control'=>'private, no-store']); }
 }

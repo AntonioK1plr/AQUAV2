@@ -1,8 +1,15 @@
 /vendor
 /node_modules
 /public/build
+/bootstrap/cache/*.php
+/database/*.sqlite
 /storage/*.key
+/storage/framework/cache/data/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+/storage/logs/*.log
 .env
 .DS_Store
 /prueba
 .phpunit.result.cache
+/storage/app/private/
