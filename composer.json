@@ -1,0 +1,18 @@
+{
+  "$schema": "https://getcomposer.org/schema.json",
+  "name": "aquarium/omnicanal",
+  "type": "project",
+  "description": "AQUARIUM omnichannel store and aquatic veterinary clinic",
+  "require": {
+    "php": "^8.2",
+    "barryvdh/laravel-dompdf": "^3.0",
+    "chillerlan/php-qrcode": "^5.0",
+    "inertiajs/inertia-laravel": "^2.0",
+    "laravel/framework": "^11.0"
+  },
+  "require-dev": {"fakerphp/faker":"^1.23","laravel/pint":"^1.13","phpunit/phpunit":"^11.0"},
+  "autoload": {"psr-4":{"App\\":"app/","Database\\Seeders\\":"database/seeders/"}},
+  "scripts": {"post-autoload-dump":["Illuminate\\Foundation\\ComposerScripts::postAutoloadDump","@php artisan package:discover --ansi"],"post-create-project-cmd":["@php artisan key:generate --ansi"]},
+  "config": {"optimize-autoloader":true,"preferred-install":"dist","sort-packages":true,"allow-plugins":{"php-http/discovery":true}},
+  "minimum-stability":"stable","prefer-stable":true
+}

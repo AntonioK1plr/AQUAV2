@@ -1,0 +1,3 @@
+<?php
+use Illuminate\Database\Migrations\Migration; use Illuminate\Database\Schema\Blueprint; use Illuminate\Support\Facades\Schema;
+return new class extends Migration { public function up(): void { Schema::create('pedidos', function(Blueprint $t){ $t->id(); $t->foreignId('user_id')->constrained()->cascadeOnDelete(); $t->string('tipo_entrega',24); $t->string('estatus',32)->default('Pendiente')->index(); $t->date('fecha_recoleccion')->nullable()->index(); $t->time('hora_recoleccion')->nullable(); $t->string('codigo_qr')->nullable()->unique(); $t->decimal('total',12,2); $t->decimal('subtotal',12,2); $t->decimal('iva',12,2); $t->timestamp('expirado_at')->nullable()->index(); $t->timestamps(); }); } public function down(): void { Schema::dropIfExists('pedidos'); } };

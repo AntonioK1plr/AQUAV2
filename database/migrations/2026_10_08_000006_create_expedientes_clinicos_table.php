@@ -1,0 +1,3 @@
+<?php
+use Illuminate\Database\Migrations\Migration; use Illuminate\Database\Schema\Blueprint; use Illuminate\Support\Facades\Schema;
+return new class extends Migration { public function up(): void { Schema::create('expedientes_clinicos', function(Blueprint $t){ $t->id(); $t->foreignId('cita_id')->unique()->constrained('citas_veterinarias')->cascadeOnDelete(); $t->text('diagnostico'); $t->text('tratamiento'); $t->decimal('constantes_ph',4,2)->nullable(); $t->decimal('constantes_temp',5,2)->nullable(); $t->string('receta_pdf_path')->nullable(); $t->string('hash_nom151',128)->nullable(); $t->timestamps(); }); } public function down(): void { Schema::dropIfExists('expedientes_clinicos'); } };
